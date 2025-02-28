@@ -145,7 +145,7 @@ inline fn getLastBatch(encoded: []const u8) []const u8 {
 }
 
 // Called when encoded.len <= 4
-inline fn getSmallDecodedLength(encoded: []const u8) usize {
+fn getSmallDecodedLength(encoded: []const u8) usize {
     if (encoded[3] != padding_symbol) {
         return 3;
     }
