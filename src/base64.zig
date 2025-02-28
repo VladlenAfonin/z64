@@ -1,5 +1,6 @@
 const std = @import("std");
 
+// TODO: This takes 255 bytes but uses simple array. Benchmark with other structures.
 fn invertTable(comptime input: []const u8, comptime length: u8) [length]u8 {
     var result: [length]u8 = [1]u8{0} ** length;
     for (input, 0..) |c, i| {
@@ -67,6 +68,7 @@ inline fn fourthSextetIndex(n: u8) u8 {
     return n & 0b0011_1111;
 }
 
+/// Encode bytes in base64 encoding.
 pub fn encode(allocator: std.mem.Allocator, decoded: []const u8) ![]const u8 {
     const encoded_length = try getEncodedLength(decoded.len);
     const encoded = try allocator.alloc(u8, encoded_length);
@@ -169,6 +171,7 @@ fn getDecodedLength(encoded: []const u8) !usize {
     };
 }
 
+/// Decode base64 string into an array of bytes.
 pub fn decode(allocator: std.mem.Allocator, encoded: []const u8) ![]const u8 {
     const decoded_length = try getDecodedLength(encoded);
     const decoded = try allocator.alloc(u8, decoded_length);
