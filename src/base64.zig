@@ -1,23 +1,21 @@
 const std = @import("std");
 
-// TODO: This takes 255 bytes but uses simple array. Benchmark with other structures.
-fn invertTable(comptime input: []const u8, comptime length: u8) [length]u8 {
-    var result: [length]u8 = [1]u8{0} ** length;
-    for (input, 0..) |c, i| {
-        result[c] = i;
-    }
-
-    return result;
-}
-
 const padding_symbol: u8 = '=';
 const padding_index: u8 = 64;
 const table =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ" ++
     "abcdefghijklmnopqrstuvwxyz" ++
-    "0123456789+/=";
+    "0123456789+/" ++
+    std.fmt.comptimePrint("{c}", .{padding_symbol});
 const table_inv_len = 255;
-const table_inv = invertTable(table, table_inv_len);
+const table_inv = x: {
+    var result: [table_inv_len]u8 = [1]u8{0} ** table_inv_len;
+    for (table, 0..) |c, i| {
+        result[c] = i;
+    }
+
+    break :x result;
+};
 
 test "table_inv" {
     try std.testing.expectEqual(table_inv['A'], 0);
@@ -29,12 +27,14 @@ test "table_inv" {
     }
 }
 
-fn getEncodedLength(decodedLength: usize) !usize {
+fn getEncodedLength(decodedLength: usize) usize {
     return switch (decodedLength) {
         0 => 0,
         1...3 => 4,
-        // TODO: Think of some optimization without division and errors.
-        else => 4 * try std.math.divCeil(usize, decodedLength, 3),
+        // TODO: Think of some optimization without division.
+        else => {
+            return 4 * (std.math.divCeil(usize, decodedLength, 3) catch unreachable);
+        },
     };
 }
 
@@ -44,7 +44,7 @@ test "getEncodedLength" {
 
     for (decoded_lengths, expected_encoded_lengths) |decoded_length, expected| {
         std.debug.print("\nTRY {}\n", .{decoded_length});
-        const result = try getEncodedLength(decoded_length);
+        const result = getEncodedLength(decoded_length);
         std.debug.print("\tRESULT: {}\n", .{decoded_length});
         std.debug.print("\tEXPECTED: {}\n", .{decoded_length});
         try std.testing.expectEqual(expected, result);
@@ -70,7 +70,7 @@ inline fn fourthSextetIndex(n: u8) u8 {
 
 /// Encode bytes in base64 encoding.
 pub fn encode(allocator: std.mem.Allocator, decoded: []const u8) ![]const u8 {
-    const encoded_length = try getEncodedLength(decoded.len);
+    const encoded_length = getEncodedLength(decoded.len);
     const encoded = try allocator.alloc(u8, encoded_length);
     errdefer allocator.free(encoded);
 
@@ -159,21 +159,22 @@ fn getSmallDecodedLength(encoded: []const u8) usize {
     return 1;
 }
 
-fn getDecodedLength(encoded: []const u8) !usize {
+fn getDecodedLength(encoded: []const u8) usize {
     return switch (encoded.len) {
         0 => 0,
         1...4 => getSmallDecodedLength(encoded),
-        // TODO: Think of some optimization without division and errors.
+        // TODO: Think of some optimization without division.
         else => {
             const last_batch = getLastBatch(encoded);
-            return 3 * (try std.math.divFloor(usize, encoded.len, 4) - 1) + getSmallDecodedLength(last_batch);
+            const divided = std.math.divFloor(usize, encoded.len, 4) catch unreachable;
+            return 3 * (divided - 1) + getSmallDecodedLength(last_batch);
         },
     };
 }
 
 /// Decode base64 string into an array of bytes.
 pub fn decode(allocator: std.mem.Allocator, encoded: []const u8) ![]const u8 {
-    const decoded_length = try getDecodedLength(encoded);
+    const decoded_length = getDecodedLength(encoded);
     const decoded = try allocator.alloc(u8, decoded_length);
     errdefer allocator.free(decoded);
 
