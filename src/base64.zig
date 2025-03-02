@@ -8,13 +8,13 @@ const table =
     "0123456789+/" ++
     std.fmt.comptimePrint("{c}", .{padding_symbol});
 const table_inv_len = 255;
-const table_inv = x: {
+const table_inv = invert: {
     var result: [table_inv_len]u8 = [1]u8{0} ** table_inv_len;
     for (table, 0..) |c, i| {
         result[c] = i;
     }
 
-    break :x result;
+    break :invert result;
 };
 
 test "table_inv" {
@@ -172,6 +172,7 @@ fn getDecodedLength(encoded: []const u8) usize {
     };
 }
 
+// TODO: Consider invalid encoded strings.
 /// Decode base64 string into an array of bytes.
 pub fn decode(allocator: std.mem.Allocator, encoded: []const u8) ![]const u8 {
     const decoded_length = getDecodedLength(encoded);
