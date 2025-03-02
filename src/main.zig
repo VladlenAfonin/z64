@@ -6,14 +6,23 @@ const base64 = @import("base64.zig");
 var stderr = std.io.getStdErr().writer();
 var stdout = std.io.getStdOut().writer();
 
-const ParamsCheckError = error{ NoActionSpecified, BothDecodeAndEncode };
-fn checkParams(comptime T: type, clap_result: T) ParamsCheckError!void {
+const CheckParamsError = error{
+    NoActionSpecified,
+    BothDecodeAndEncode,
+};
+fn checkParamsErrorToString(err: CheckParamsError) []const u8 {
+    return switch (err) {
+        CheckParamsError.NoActionSpecified => "error: no action was specified\n",
+        CheckParamsError.BothDecodeAndEncode => "error: both -e and -d specified\n",
+    };
+}
+fn checkParams(comptime T: type, clap_result: T) CheckParamsError!void {
     if (clap_result.args.encode == 0 and clap_result.args.decode == 0) {
-        return ParamsCheckError.NoActionSpecified;
+        return CheckParamsError.NoActionSpecified;
     }
 
     if (clap_result.args.encode != 0 and clap_result.args.decode != 0) {
-        return ParamsCheckError.BothDecodeAndEncode;
+        return CheckParamsError.BothDecodeAndEncode;
     }
 
     return;
@@ -70,11 +79,10 @@ pub fn main() !void {
         });
     }
 
-    checkParams(@TypeOf(clap_result), clap_result) catch |err| return switch (err) {
-        ParamsCheckError.NoActionSpecified => _ =
-            try stderr.write("error: no action was specified\n"),
-        ParamsCheckError.BothDecodeAndEncode => _ =
-            try stderr.write("error: both -e and -d specified\n"),
+    checkParams(@TypeOf(clap_result), clap_result) catch |err| {
+        const message = checkParamsErrorToString(err);
+        _ = try stderr.write(message);
+        return;
     };
 
     const input = clap_result.positionals[0];
